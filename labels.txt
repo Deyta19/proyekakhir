@@ -1,0 +1,4 @@
+0 restar art
+1 2D pixel art
+2 realistic 3D graphics
+3 3D retro-style graphics
