@@ -6,6 +6,9 @@
 <img width="745" height="279" alt="Image" src="https://github.com/user-attachments/assets/054e2e6c-d48b-4e50-a8e5-77b7051d67ea" />
 
 ### Salah satu dari banyak quiz yang ada 
+<img width="427" height="323" alt="Image" src="https://github.com/user-attachments/assets/9d0c5fc5-393d-49e1-a10f-efa3639be750" />
+
+### Hiburan untuk pengguna yang bisa ditunjukan ke orang lain
 
 
 
