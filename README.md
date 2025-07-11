@@ -13,3 +13,4 @@
 ## perpustakaan yang digunakan - Discord
 ### refrensi yang digunakan - Bot discord yang bernama "Cat Bot"
 ### artikel yang membantu saya adalah artikel berikut ini
+### Artikel
