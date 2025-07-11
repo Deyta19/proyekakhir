@@ -9,10 +9,10 @@
 <img width="427" height="323" alt="Image" src="https://github.com/user-attachments/assets/9d0c5fc5-393d-49e1-a10f-efa3639be750" />
 
 ### Hiburan untuk pengguna yang bisa ditunjukan ke orang lain
+<img width="554" height="435" alt="Image" src="https://github.com/user-attachments/assets/3811c9c0-c65a-414e-a936-a71fbadcc100" /> <img width="519" height="684" alt="Image" src="https://github.com/user-attachments/assets/52824f9d-67e6-461c-bd58-fdd5feb88b99" />
 
 
-
-## solusi:
+## solusi untuk masalah:
 1. memberitahu penyebab perubahan iklim
 2. memberi cara menghambat perubahan iklim
 3. menjelaskan dampak dari perubahan iklim
