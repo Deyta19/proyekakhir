@@ -3,10 +3,19 @@ from discord.ext import commands
 import os
 from ai import get_class
 import random
+import shutil
+import hashlib
+
+STORAGE_DIR = "storage"
+os.makedirs(STORAGE_DIR, exist_ok=True)
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.messages = True
+intents.reactions = True
+intents.messages = True
+intents.guilds = True
+intents.members = True
 
 bot = commands.Bot(command_prefix='$', intents=intents)
 
@@ -15,10 +24,13 @@ os.makedirs(SAVE_DIRECTORY, exist_ok=True)
 
 @bot.command(name='commands')
 async def send_link(ctx):
-    await ctx.send("""Command yang ada:\n
+    await ctx.send("""Command yang ada:
+`$commands` : memperlihatkan semua command yang ada
 `$info`: memberikan **informasi** tentang perubahan iklim
 `$quiz`: memberikan **quiz** yang bisa dipelajari kembali setelah dijawab
 `$meme`: memperlihatkan beberapa **meme** tentang perubahan iklim
+`$inventory`: untuk melihat gambar apa saja yang sudah anda dapatkan
+`$save`: digunakan untuk menyimpan gambar anda sendiri ke dalam bot
 `$learn`: link **video** belajar tentang perubahan iklim, tapi ada kemungkin kejadian lucu terjadi ;)""")
 
 pages = [
@@ -135,9 +147,37 @@ Quiz5 = {
     \nC. Pemanasan global.""")
 }
 
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user}")
+def hash_file(filepath):
+    with open(filepath, 'rb') as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+def user_has_image(user_id, image_path):
+    target_hash = hash_file(image_path)
+    user_dir = f"user_images/{user_id}"
+    if not os.path.exists(user_dir):
+        return False
+    for fname in os.listdir(user_dir):
+        fpath = os.path.join(user_dir, fname)
+        if hash_file(fpath) == target_hash:
+            return True
+    return False
+
+@bot.command(name='save')
+async def upload(ctx):
+    if not ctx.message.attachments:
+        await ctx.send("Mohon lampirkan gambar untuk diunggah.")
+        return
+
+    user_dir = f"user_images/{ctx.author.id}"
+    os.makedirs(user_dir, exist_ok=True)
+
+    for attachment in ctx.message.attachments:
+        if attachment.filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
+            save_path = os.path.join(user_dir, attachment.filename)
+            await attachment.save(save_path)
+            await ctx.send(f"✅ Gambar '{attachment.filename}' berhasil disimpan.") 
+        else:
+            await ctx.send(f"'{attachment.filename}' bukan format gambar yang valid.")
 
 @bot.command(name='quiz')
 async def menu(ctx):
@@ -145,29 +185,29 @@ async def menu(ctx):
     A = '🇦'
     B = '🇧'
     C = '🇨'
-    
+
     pick = random.randint(1, 5)
-    
+
     if pick == 1:
         quiz = Quiz1
         correct_emoji = B
-        correct_image = "benar1.jpeg"
+        fallback_image = "benar1.jpeg"
     elif pick == 2:
         quiz = Quiz2
         correct_emoji = A
-        correct_image = "benar2.jpeg"
+        fallback_image = "benar2.jpeg"
     elif pick == 3:
         quiz = Quiz3
         correct_emoji = A
-        correct_image = "benar3.jpeg"
+        fallback_image = "benar3.jpeg"
     elif pick == 4:
         quiz = Quiz4
         correct_emoji = C
-        correct_image = "benar4.jpeg"
+        fallback_image = "benar4.jpeg"
     elif pick == 5:
         quiz = Quiz5
         correct_emoji = C
-        correct_image = "benar5.jpg"
+        fallback_image = "benar5.jpg"
 
     emojis = list(quiz.keys())
     current_embed = quiz[paper_emoji]
@@ -187,9 +227,21 @@ async def menu(ctx):
 
             if new_embed:
                 if emoji_clicked == correct_emoji:
-                    file = discord.File(correct_image, filename=correct_image)
-                    new_embed.set_image(url=f"attachment://{correct_image}")
+                    file = discord.File(fallback_image, filename=os.path.basename(fallback_image))
+                    new_embed.set_image(url=f"attachment://{os.path.basename(fallback_image)}")
                     await message.edit(embed=new_embed, attachments=[file])
+
+                    # Save to user's storage if not already there
+                    user_dir = f"user_images/{user.id}"
+                    os.makedirs(user_dir, exist_ok=True)
+                    if not user_has_image(user.id, fallback_image):
+                        base = os.path.basename(fallback_image)
+                        new_name = f"{os.path.splitext(base)[0]}_{random.randint(1000,9999)}{os.path.splitext(base)[1]}"
+                        save_path = os.path.join(user_dir, new_name)
+                        shutil.copy(fallback_image, save_path)
+                        await ctx.send(f"📥 Gambar berhasil disimpan sebagai `{new_name}`.")
+                    else:
+                        await ctx.send("⚠️ Gambar ini sudah ada di penyimpanan kamu.")
                 else:
                     await message.edit(embed=new_embed)
 
@@ -198,22 +250,110 @@ async def menu(ctx):
         except Exception:
             break
 
-IMAGE_FOLDER = 'images' 
+@bot.command(name='inventory')
+async def myimages(ctx):
+    user_id = ctx.author.id
+    user_dir = f"user_images/{user_id}"
+
+    if not os.path.exists(user_dir) or not os.listdir(user_dir):
+        await ctx.send("📂 Kamu belum menyimpan gambar apa pun.")
+        return
+
+    files = sorted(os.listdir(user_dir))
+    per_page = 5
+    total_pages = (len(files) + per_page - 1) // per_page
+    current_page = 0
+
+    number_emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"]
+    nav_emojis = ["⬅️", "➡️"]
+    valid_emojis = number_emojis + nav_emojis
+
+    def get_page_embed(page):
+        start = page * per_page
+        end = start + per_page
+        chunk = files[start:end]
+        lines = [f"{number_emojis[i]} {name}" for i, name in enumerate(chunk)]
+        embed = discord.Embed(title=f"📁 Gambar kamu (Hal {page + 1}/{total_pages})", description="\n".join(lines))
+        return embed, chunk
+
+    embed, chunk = get_page_embed(current_page)
+    message = await ctx.send(embed=embed)
+
+    for emoji in valid_emojis[:len(chunk)] + nav_emojis:
+        await message.add_reaction(emoji)
+
+    def check(reaction, user):
+        return (
+            user == ctx.author
+            and str(reaction.emoji) in valid_emojis
+            and reaction.message.id == message.id
+        )
+
+    while True:
+        try:
+            reaction, user = await bot.wait_for("reaction_add", timeout=60.0, check=check)
+            emoji = str(reaction.emoji)
+            await message.remove_reaction(emoji, user)
+
+            if emoji in number_emojis:
+                index = number_emojis.index(emoji)
+                if index < len(chunk):
+                    filename = chunk[index]
+                    path = os.path.join(user_dir, filename)
+                    file = discord.File(path, filename=filename)
+                    await ctx.send(f"🖼️ Gambar kamu: `{filename}`", file=file)
+
+            elif emoji == "➡️" and current_page < total_pages - 1:
+                current_page += 1
+                embed, chunk = get_page_embed(current_page)
+                await message.edit(embed=embed)
+                await message.clear_reactions()
+                for emoji in valid_emojis[:len(chunk)] + nav_emojis:
+                    await message.add_reaction(emoji)
+
+            elif emoji == "⬅️" and current_page > 0:
+                current_page -= 1
+                embed, chunk = get_page_embed(current_page)
+                await message.edit(embed=embed)
+                await message.clear_reactions()
+                for emoji in valid_emojis[:len(chunk)] + nav_emojis:
+                    await message.add_reaction(emoji)
+
+        except Exception:
+            break
+
+IMAGE_FOLDER = "images"     
+USER_IMAGE_FOLDER = "user_images"      
 
 @bot.command(name='meme')
-async def image(ctx):
+async def meme(ctx):
+    # Get all meme images
     images = [f for f in os.listdir(IMAGE_FOLDER) if f.lower().endswith(('png', 'jpg', 'jpeg', 'gif'))]
 
     if len(images) < 1:
-        await ctx.send("No images found.")
+        await ctx.send("❌ Tidak ada gambar meme yang tersedia.")
         return
 
     selected_image = random.choice(images)
-    print(f"Sending: {selected_image}") 
+    source_path = os.path.join(IMAGE_FOLDER, selected_image)
 
-    with open(os.path.join(IMAGE_FOLDER, selected_image), 'rb') as f:
-        file = discord.File(f, filename=selected_image)
-        await ctx.send(file=file)
+    # Create user's personal folder
+    user_id = str(ctx.author.id)
+    user_folder = os.path.join(USER_IMAGE_FOLDER, user_id)
+    os.makedirs(user_folder, exist_ok=True)
+
+    destination_path = os.path.join(user_folder, selected_image)
+
+    # Save image if not already collected
+    if not os.path.exists(destination_path):
+        shutil.copyfile(source_path, destination_path)
+        status_msg = "📥 Gambar baru ditambahkan ke koleksimu!"
+    else:
+        status_msg = "✅ Gambar ini sudah ada di koleksimu."
+
+    # Send the image to the user
+    file = discord.File(source_path, filename=selected_image)
+    await ctx.send(f"🖼️ `{selected_image}`\n{status_msg}", file=file)
 
 @bot.event
 async def on_ready():
@@ -223,12 +363,12 @@ async def on_ready():
 async def hello(ctx):
     await ctx.send(f'Hi! I am a bot {bot.user}!')
 
-link1 = "Jika anda mau belajar lebih lanjut tentang perubahan iklim, klik link berikut:) [video](https://youtu.be/J4Zwc6UzxAg)"
+link1 = "Jika anda mau belajar lebih lanjut tentang perubahan iklim, klik link berikut :) [video](https://youtu.be/J4Zwc6UzxAg)"
 link2 = "Jika anda mau belajar lebih lanjut tentang perubahan iklim, klik link berikut: [video](https://youtu.be/kyqy6XiqWx4?si=Pkn5tYfp5plXXA9w)"
 
 @bot.command(name='learn')
 async def send_link(ctx):
-    link=random.randint(1,4)
+    link=random.randint(1,3)
     if link == 1:
         message = await ctx.send(link1)
         await message.edit(suppress=True)
@@ -256,4 +396,4 @@ async def save_image(ctx):
         else:
             await ctx.send(f"⚠️ File `{attachment.filename}` bukan gambar dan tidak disimpan.")
 
-bot.run("TOKEN")
+bot.run("token")
