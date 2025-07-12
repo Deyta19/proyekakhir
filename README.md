@@ -1,7 +1,7 @@
 # Climate Change Teacher
 ***Climate Change Teacher*** adalah bot discord yang bertujuan untuk mengedukasikan pengguna mengenai perubahan iklim melalui perintah yang menunjukan informasi dan melalui quiz. Bot ini juga memiliki beberapa perintah untuk menghibur pengguna agar tidak bosan
 
-## Cuplikan bot 
+## Hal-hal yang bisa dilakukan bot 
 ### Bot ini memiliki banyak perintah yang beragam
 <img width="745" height="279" alt="Image" src="https://github.com/user-attachments/assets/054e2e6c-d48b-4e50-a8e5-77b7051d67ea" />
 
